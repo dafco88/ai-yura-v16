@@ -1,0 +1,6 @@
+name = "preuves"
+version = "0.1.0"
+defaultTargets = ["Preuves"]
+
+[[lean_lib]]
+name = "Preuves"

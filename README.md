@@ -89,6 +89,31 @@ Simulation de 60 nuits de ré-entraînement, candidats qui dérivent de +9 % par
 
 Vérifiée en production le 29.08.2026 (voir §2).
 
+## 4bis. Résultats formels vérifiés mécaniquement (Lean 4)
+
+Le comportement de la porte n'est pas qu'un résultat de simulation : il découle de deux théorèmes simples,
+**vérifiés par Lean 4.33.1**, sans Mathlib, sans `sorry` ni `axiom`. L'algèbre utilisée (un semi-anneau
+ordonné) est déclarée explicitement, et une instance concrète sur les entiers naturels montre qu'elle
+n'est pas vide. Fichiers dans [`preuves/`](preuves/).
+
+| Fichier — énoncé | Résultat | Portée |
+|---|---|---|
+| `SafetyGate.lean` — théorème 2 | Porte **dépendante du chemin** (référence = dernier état accepté, seuil τ par tour) : la seule garantie au tour n est **sₙ ≥ τⁿ · s₀**, qui se dégrade géométriquement | résultat principal |
+| `SafetyGate.lean` — théorème 1 | Porte **ancrée** (référence = état initial) : **sₙ ≥ τ · s₀ à tout tour**, indépendamment de la longueur | découle directement de la règle ; sert de contraste |
+| `Consolidation.lean` — théorème 3 | Contrainte **par pas** ≤ c : dérive cumulée ≤ **n · c** | borne croissante avec le temps |
+| `Consolidation.lean` — théorème 4 | Contrainte **à distance de l'origine** ≤ B : borne **B** à tout tour | constante en n |
+| `Consolidation.lean` — théorème 5 | Mémoire à **moyenne mobile exponentielle** : la contribution de l'état initial est ≤ **rⁿ** | effacement géométrique |
+
+Lecture : une référence **ancrée** donne une garantie constante, une référence **dépendante du chemin**
+une garantie qui s'érode à chaque tour. La simulation du §4 en est l'illustration numérique (×39,7 à ×58,0
+pour la porte classique contre ×1,07 à ×1,10 pour la porte ancrée).
+
+**Ce qui n'est PAS établi** : la convergence rⁿ → 0 (analyse réelle non formalisée) ; qu'une référence figée
+soit préférable en général (elle borne l'oubli mais aussi l'apprentissage) ; la correspondance exacte entre
+ces énoncés et une implémentation donnée, qui reste une hypothèse de modélisation.
+
+Vérifier soi-même : `cd preuves && lake build` (Lean 4.33.1 via `elan`, quelques secondes).
+
 ## 5. Limites connues
 
 - En vision, les tâches les plus anciennes restent mal retenues. Trois pistes testées en septembre
