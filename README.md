@@ -267,6 +267,9 @@ l'aventure, **en un seul processus, sans rechargement ni réinitialisation du r�
 6 graines, hypothèses et règles de classement écrites avant chaque campagne. Voir une image et nommer sa zone prend
 environ 4 ms.
 
+*Ce jeu est un banc distinct du banc multimodal (§1) : ses mesures ne remplacent pas les mesures vision retirées
+le 13.09.2026, dont la re-mesure reste en cours.*
+
 **Deux premières campagnes invalidées par leurs propres contrôles.** Avec brume, le réseau n'atteignait pas la
 capacité requise même en apprenant les dix zones d'un coup (79,1 à 80,8 % pour un seuil de 80 %). Sans brume, le
 contrôle « la couleur moyenne ne suffit pas » est tombé à 0,500 sur une graine pour un seuil strict de 0,50 : le seuil
