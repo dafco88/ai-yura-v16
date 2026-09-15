@@ -33,9 +33,12 @@ Chiffres tenus sur 6 graines (protocole corrigé, conditions mesurées dans la m
   sur 39 (§5).
 - **Écart défavorable mesuré et assumé** : remplacer l'optimiseur du projet par AdamW donne
   **86,1 ± 0,5** en texte contre **83,1 ± 1,6** pour le témoin, sur les mêmes 6 graines. Sur ce
-  banc, l'optimiseur maison coûte de la rétention (§7).
+  banc, l'optimiseur maison coûte de la rétention (§8).
 - Sur un **banc simulant** 60 nuits de ré-entraînement, la dérive de qualité reste bornée à
   **×1,07 à ×1,10**, contre ×39,7 à ×58,0 pour une porte de promotion classique (§4).
+- Sur un **jeu d'aventure en tuiles**, une compensation de dérive des repères sans données anciennes améliore
+  la mémoire des zones (+8,9 points, 6 graines sur 6), mais par redistribution entre zones ; AI-YURA y reste loin
+  d'une mémoire sans oubli (§7).
 - En production, le 29.08.2026, une régression réelle (perplexité 32,5 contre 20,9) a été **rejetée
   automatiquement** et le champion restauré, sans intervention humaine.
 
@@ -255,7 +258,84 @@ seulement. Témoin et levier entrelacés, **12 graines** (6 puis 6 de réplicati
 Sur 6 graines, le levier paraissait gratuit ; la réplication sur 6 graines de plus a confirmé le gain texte
 et établi le coût vision. **C'est un arbitrage texte/vision, pas un gain : levier non adopté.**
 
-## 7. Limites connues
+## 7. AI-YURA joue — se repérer dans un monde en tuiles (15.09.2026)
+
+Jeu d'aventure vu de dessus, dans le style des RPG rétro : dix zones fixes (bourg, route, forêt, lac, grotte, plage,
+neige, désert, marais, ville), chacune une carte de 48 × 48 tuiles. Le modèle ne voit que la caméra du joueur
+(32 × 32 pixels, lumière variable à chaque image) et doit nommer la zone. Cinq étapes de deux zones, dans l'ordre de
+l'aventure, **en un seul processus, sans rechargement ni réinitialisation du réseau**. Tronc de 1,84 M de paramètres,
+6 graines, hypothèses et règles de classement écrites avant chaque campagne. Voir une image et nommer sa zone prend
+environ 4 ms.
+
+**Deux premières campagnes invalidées par leurs propres contrôles.** Avec brume, le réseau n'atteignait pas la
+capacité requise même en apprenant les dix zones d'un coup (79,1 à 80,8 % pour un seuil de 80 %). Sans brume, le
+contrôle « la couleur moyenne ne suffit pas » est tombé à 0,500 sur une graine pour un seuil strict de 0,50 : le seuil
+avait été fixé d'après une seule graine, erreur de conception corrigée ensuite par un contrôle fixe sur 4 000 vues
+(0,455 ± 0,008). Aucune de ces deux campagnes n'est interprétée. Elles ont établi que l'exécution est
+**déterministe au bit près** : le bruit utile est l'écart entre graines.
+
+**Règle de classement** : effet moyen divisé par l'écart-type entre graines, et test du signe (seuil corrigé 0,025).
+*Établi* si 6/6 dans le même sens et rapport > 3 ; *limite* si rapport ≥ 2 et ≥ 5/6 ; sinon *non mesurable*.
+
+### Compenser la dérive des repères, sans revoir aucune image ancienne
+
+Les vues des zones anciennes n'étaient pas oubliées au hasard : elles étaient attirées par les repères de la zone la
+plus récente. Levier : après chaque étape, estimer la dérive des représentations à partir des seules images de la zone
+en cours, et déplacer les anciens repères d'autant. Le même modèle est lu avec ses repères figés et compensés
+(entraînement vérifié identique au bit près).
+
+| Graine | Santé, repères figés | Compensés | Partie, repères figés | Compensés |
+|---|---|---|---|---|
+| 0 | 27,1 | 39,1 | 22,5 % | 35,0 % |
+| 1 | 27,8 | 39,0 | 25,5 % | 31,0 % |
+| 2 | 28,3 | 36,3 | 20,5 % | 33,5 % |
+| 3 | 28,2 | 36,5 | 24,0 % | 33,5 % |
+| 4 | 26,4 | 35,4 | 22,0 % | 31,0 % |
+| 5 | 34,1 | 39,2 | 27,0 % | 34,5 % |
+| **moyenne** | **28,6** | **37,6** | **23,6 %** | **33,1 %** |
+
+Santé +8,9 ± 2,5 (rapport 3,6, 6/6) : **établi**. Précision en partie +9,5 ± 2,9 (3,3, 6/6) : **établi**.
+
+*Ce que ce résultat ne dit pas* : c'est une **redistribution**, pas une récupération. La zone la plus récente perd
+23 points (6/6), la plus ancienne reste à zéro, et à l'étape intermédiaire « neige + désert » la compensation dégrade
+(5/6) : l'effet dépend de l'endroit où l'on s'arrête. En valeur absolue, la santé reste d'environ 37 %, contre 68 %
+quand les repères sont recalculés à partir d'images.
+
+### Protéger la zone la plus récente par une garde
+
+Un repère ancien n'est déplacé que si ce déplacement ne lui fait pas attirer davantage d'images de la zone en cours.
+La perte de la zone récente disparaît (−0,23 → +0,01, 6/6), mais 50 à 65 % des déplacements sont rejetés et la santé
+retombe près du niveau figé : −6,9 ± 3,5 points par rapport à la compensation sans garde, 6/6 dans le même sens,
+rapport 1,98 pour un seuil de 2 → **non mesurable**. Les déplacements qui prennent des images à la zone récente sont
+ceux qui réparent les zones intermédiaires.
+
+### Attribution : quel mécanisme porte la mémoire des zones ?
+
+Quatre variantes entraînées côte à côte sur le même flux d'images, avec la même initialisation, un seul composant
+retiré à la fois. Santé en fin de partie, repères figés :
+
+| Graine | Sans protection | AI-YURA complet | Sans consolidation | Sans distillation |
+|---|---|---|---|---|
+| 0 | 24,3 | 27,1 | 27,2 | 24,6 |
+| 1 | 20,0 | 27,8 | 30,2 | 22,9 |
+| 2 | 23,4 | 28,3 | 28,7 | 21,8 |
+| 3 | 20,6 | 28,2 | 26,9 | 20,0 |
+| 4 | 22,7 | 26,4 | 26,3 | 22,2 |
+| 5 | 23,2 | 34,1 | 27,8 | 25,4 |
+| **moyenne** | **22,4** | **28,6** | **27,9** | **22,8** |
+
+- **Sans distillation des représentations : −5,8 ± 2,4** (rapport 2,4, 6/6) → **limite**. La santé redescend près du
+  niveau sans protection ; les repères anciens se déforment (cosinus avec la réalité 0,86 contre 0,97).
+- **Sans consolidation des poids : −0,8 ± 3,0** (3/6 dans chaque sens) → **non mesurable**, alors que la dérive des
+  poids est multipliée par cinq. Lecture descriptive, hors règle : la consolidation aidait en cours de séquence (santé
+  39 contre 26 à l'étape 4), écart disparu en fin de partie ; elle représente environ 75 % du calcul par pas et ralentit
+  l'apprentissage des nouvelles zones jusqu'à 2,6 fois.
+
+*Portée* : sur ce jeu et ces 6 graines, la protection mesurable du repérage vient de la distillation des
+représentations. Rien ne se transpose au banc texte (§1), où retirer la consolidation coûte 18,7 points. Les deux
+retraits n'ont pas été combinés ; « la consolidation est inutile » n'est pas une conclusion permise.
+
+## 8. Limites connues
 
 - **Vision : aucune mesure publiée à ce jour.** Le banc vision a tourné sous un protocole défectueux
   du 07.08 au 12.09.2026 ; les chiffres correspondants ont été retirés et la re-mesure est en cours.
@@ -270,6 +350,8 @@ et établi le coût vision. **C'est un arbitrage texte/vision, pas un gain : lev
   quelle condition atteint la meilleure perplexité absolue en fin de séquence.
 - Le champion texte n'a pas été remplacé depuis le 18.08.2026 : les domaines code, Shakespeare et
   TinyStories font échouer les candidats.
+- **Jeu en tuiles** (§7) : AI-YURA reste loin d'une mémoire sans oubli (santé d'environ 37 % au mieux) ; un seul jeu,
+  6 graines, aucune tâche texte.
 - Les résultats à une seule graine sont traités comme des directions, jamais comme des conclusions.
 - Aucune comparaison à une méthode publiée n'a été exécutée dans ce harnais à ce jour. Les chiffres
   ci-dessus mesurent des écarts internes entre conditions, pas une position dans l'état de l'art.
